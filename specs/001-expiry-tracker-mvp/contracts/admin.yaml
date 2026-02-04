@@ -1,0 +1,437 @@
+openapi: 3.0.0
+info:
+  title: Expiry Tracker API - Admin Panel
+  version: 1.0.0
+  description: Admin panel endpoints for user and system management
+
+servers:
+  - url: http://localhost:3000/api
+    description: Local development
+  - url: https://api.expirytracker.com/api
+    description: Production
+
+paths:
+  /admin/users:
+    get:
+      summary: Get all registered users (admin only)
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Search by email
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, deactivated]
+          description: Filter by account status
+        - name: role
+          in: query
+          schema:
+            type: string
+            enum: [user, admin]
+          description: Filter by role
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [email_asc, email_desc, created_asc, created_desc, login_asc, login_desc]
+            default: created_desc
+          description: Sort order
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+          description: Page number
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+          description: Users per page
+      responses:
+        '200':
+          description: Users retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      users:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/AdminUserView'
+                      pagination:
+                        $ref: '#/components/schemas/Pagination'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /admin/users/{id}:
+    get:
+      summary: Get detailed user profile (admin only)
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: User ID
+      responses:
+        '200':
+          description: User profile retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      user:
+                        $ref: '#/components/schemas/AdminUserView'
+                      items:
+                        type: object
+                        properties:
+                          foodItems:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                id:
+                                  type: integer
+                                  example: 1
+                                name:
+                                  type: string
+                                  example: Milk
+                                expiryDate:
+                                  type: string
+                                  format: date
+                                  example: 2026-02-15
+                                status:
+                                  type: string
+                                  example: Safe
+                          documents:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                id:
+                                  type: integer
+                                  example: 1
+                                type:
+                                  type: string
+                                  example: Passport
+                                number:
+                                  type: string
+                                  example: AB1234567
+                                expiryDate:
+                                  type: string
+                                  format: date
+                                  example: 2028-06-30
+                                status:
+                                  type: string
+                                  example: Safe
+                      notifications:
+                        type: array
+                        description: Recent notification history
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              example: 1
+                            itemType:
+                              type: string
+                              example: food_item
+                            scheduledTime:
+                              type: string
+                              format: date-time
+                              example: 2026-01-30T09:00:00Z
+                            deliveryStatus:
+                              type: string
+                              enum: [pending, sent, failed]
+                              example: sent
+                            deliveredAt:
+                              type: string
+                              format: date-time
+                              example: 2026-01-30T09:00:15Z
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      summary: Update user account status (admin only)
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: User ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [active, deactivated]
+                  example: deactivated
+      responses:
+        '200':
+          description: User status updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: User account deactivated successfully
+                  data:
+                    $ref: '#/components/schemas/AdminUserView'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /admin/statistics:
+    get:
+      summary: Get system-wide statistics (admin only)
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: System statistics retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      users:
+                        type: object
+                        properties:
+                          total:
+                            type: integer
+                            example: 1250
+                          active:
+                            type: integer
+                            example: 1180
+                          deactivated:
+                            type: integer
+                            example: 70
+                          activeLastWeek:
+                            type: integer
+                            example: 450
+                            description: Users who logged in within last 7 days
+                      items:
+                        type: object
+                        properties:
+                          totalFoodItems:
+                            type: integer
+                            example: 15000
+                          totalDocuments:
+                            type: integer
+                            example: 3500
+                          expiredItems:
+                            type: integer
+                            example: 1200
+                          expiringSoonItems:
+                            type: integer
+                            example: 2300
+                      notifications:
+                        type: object
+                        properties:
+                          sentLast30Days:
+                            type: integer
+                            example: 8500
+                          pendingNotifications:
+                            type: integer
+                            example: 1200
+                          failedLast30Days:
+                            type: integer
+                            example: 45
+                      growth:
+                        type: object
+                        properties:
+                          newUsersThisMonth:
+                            type: integer
+                            example: 120
+                          newUsersLastMonth:
+                            type: integer
+                            example: 95
+                          itemsAddedThisMonth:
+                            type: integer
+                            example: 2400
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    AdminUserView:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        role:
+          type: string
+          enum: [user, admin]
+          example: user
+        status:
+          type: string
+          enum: [active, deactivated]
+          example: active
+        totalItems:
+          type: integer
+          example: 25
+          description: Total food items + documents
+        createdAt:
+          type: string
+          format: date-time
+          example: 2026-01-15T10:00:00Z
+        lastLoginAt:
+          type: string
+          format: date-time
+          example: 2026-01-23T08:30:00Z
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+          example: 1
+        limit:
+          type: integer
+          example: 50
+        total:
+          type: integer
+          example: 1250
+        totalPages:
+          type: integer
+          example: 25
+
+  responses:
+    Unauthorized:
+      description: Unauthorized - Invalid or missing token
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              message:
+                type: string
+                example: Unauthorized
+
+    Forbidden:
+      description: Forbidden - Admin access required
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              message:
+                type: string
+                example: Admin access required
+
+    ValidationError:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              message:
+                type: string
+                example: Validation error
+              errors:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    field:
+                      type: string
+                      example: status
+                    message:
+                      type: string
+                      example: Invalid status value
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              message:
+                type: string
+                example: User not found
